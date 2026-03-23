@@ -20,5 +20,7 @@ gradle assembleDebug
 
 APK: app/build/outputs/apk/debug/app-debug.apk
 
+**Watch Full Tutorial** [YouTube Video](https://youtu.be/aa1tyLQrruY)
+
 > Note: This project is a simple example of building an Android app natively in Termux using the TermuxVoid repository. It demonstrates a complete workflow from installing the SDK to compiling an APK – all from the command line.
 
