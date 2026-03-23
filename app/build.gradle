@@ -1,0 +1,53 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+}
+
+android {
+    namespace 'alienkrishn.samplechat'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'alienkrishn.samplechat'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+	buildToolsVersion = "36.1.0"
+	ndkVersion = "29.0.14206865"
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+}
+
+dependencies {
+    // AndroidX
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.appcompat
+    implementation libs.material
+    implementation libs.androidx.constraintlayout
+
+    // RunAnywhere SDK – core, LLM, and STT (ONNX)
+    implementation("io.github.sanchitmonga22:runanywhere-sdk-android:0.20.6")
+    implementation("io.github.sanchitmonga22:runanywhere-llamacpp-android:0.20.6")
+    implementation("io.github.sanchitmonga22:runanywhere-onnx-android:0.20.6") // for speech‑to‑text
+    implementation("androidx.cardview:cardview:1.0.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+}
