@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="alienkrishn.samplechat">
 
-    <!-- Required for downloading models -->
+    <!-- Required permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Required for voice input -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- Optional, may help with audio processing -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -17,14 +16,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <!-- Model selection screen (launcher) -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ModelSelectionActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Chat screen -->
+        <activity
+            android:name=".ChatActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
