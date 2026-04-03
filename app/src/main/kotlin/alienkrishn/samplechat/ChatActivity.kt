@@ -1,6 +1,9 @@
 package alienkrishn.samplechat
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -15,6 +18,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -33,6 +37,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var btnVoice: ImageButton
     private lateinit var progressBar: ProgressBar
     private lateinit var tvProgressPercent: TextView
+    private lateinit var toolbar: Toolbar
 
     private val messages = mutableListOf<Message>()
     private lateinit var adapter: MessageAdapter
@@ -47,6 +52,15 @@ class ChatActivity : AppCompatActivity() {
         else Toast.makeText(this, "Microphone permission required", Toast.LENGTH_SHORT).show()
     }
 
+    private val voiceInputLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val results = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!results.isNullOrEmpty()) sendUserMessage(results[0])
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
@@ -57,6 +71,7 @@ class ChatActivity : AppCompatActivity() {
             return
         }
 
+        toolbar = findViewById(R.id.toolbar)
         rvMessages = findViewById(R.id.rvMessages)
         etMessage = findViewById(R.id.etMessage)
         btnSend = findViewById(R.id.btnSend)
@@ -64,7 +79,15 @@ class ChatActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         tvProgressPercent = findViewById(R.id.tvProgressPercent)
 
-        adapter = MessageAdapter(messages)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.setNavigationOnClickListener { finish() }
+
+        adapter = MessageAdapter(
+            messages,
+            onBotMessageClick = { message -> copyToClipboard(message) },
+            onRetryClick = { prompt -> retryFailedMessage(prompt) }
+        )
         rvMessages.layoutManager = LinearLayoutManager(this)
         rvMessages.adapter = adapter
 
@@ -75,8 +98,50 @@ class ChatActivity : AppCompatActivity() {
 
         btnVoice.setOnClickListener { checkAndRequestMicrophonePermission() }
 
+        // Add clear conversation button
+        val btnClear = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_delete)
+            contentDescription = "Clear conversation"
+            background = null
+            setColorFilter(ContextCompat.getColor(this@ChatActivity, android.R.color.white))
+            setOnClickListener { clearConversation() }
+            layoutParams = Toolbar.LayoutParams(
+                Toolbar.LayoutParams.WRAP_CONTENT,
+                Toolbar.LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = android.view.Gravity.END
+                rightMargin = 16
+            }
+        }
+        toolbar.addView(btnClear)
+
         // Load the model
         loadModel()
+    }
+
+    private fun copyToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("AI Message", text))
+        Toast.makeText(this, "Message copied", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearConversation() {
+        if (messages.isNotEmpty()) {
+            messages.clear()
+            adapter.notifyDataSetChanged()
+            Toast.makeText(this, "Conversation cleared", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun retryFailedMessage(prompt: String) {
+        // Remove the error message
+        val lastMessage = messages.lastOrNull()
+        if (lastMessage != null && lastMessage.isError) {
+            messages.removeAt(messages.size - 1)
+            adapter.notifyItemRemoved(messages.size)
+        }
+        // Resend the prompt
+        sendUserMessage(prompt)
     }
 
     private fun checkAndRequestMicrophonePermission() {
@@ -90,15 +155,7 @@ class ChatActivity : AppCompatActivity() {
     private fun startVoiceInput() {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        startActivityForResult(intent, 1001)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            val results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            if (!results.isNullOrEmpty()) sendUserMessage(results[0])
-        }
+        voiceInputLauncher.launch(intent)
     }
 
     private fun loadModel() {
@@ -128,7 +185,7 @@ class ChatActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val thinkingIndex = messages.size
-            messages.add(Message("...", false))
+            messages.add(Message("Thinking...", false))
             adapter.notifyItemInserted(thinkingIndex)
             rvMessages.scrollToPosition(thinkingIndex)
 
@@ -140,7 +197,12 @@ class ChatActivity : AppCompatActivity() {
                 adapter.notifyItemChanged(thinkingIndex)
             } catch (e: Exception) {
                 Log.e(TAG, "Chat failed", e)
-                messages[thinkingIndex] = Message("Error: ${e.message}", false)
+                messages[thinkingIndex] = Message(
+                    "Failed to get response. Tap to retry.",
+                    false,
+                    isError = true,
+                    originalPrompt = userText
+                )
                 adapter.notifyItemChanged(thinkingIndex)
             }
             rvMessages.scrollToPosition(messages.size - 1)
